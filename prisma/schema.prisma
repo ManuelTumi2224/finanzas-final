@@ -1,0 +1,225 @@
+// Modelo de datos de AutoFinanZ (Capitulo 8 y Anexo 1 del informe).
+// 10 tablas: usuarios, clientes, vehiculos, entidades_financieras, simulaciones,
+// parametros_credito, cronograma_pagos, resultados_credito, seguros_comisiones, auditoria.
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Usuario {
+  idUsuario      Int       @id @default(autoincrement()) @map("id_usuario")
+  nombreUsuario  String    @unique @map("nombre_usuario") @db.VarChar(50)
+  passwordHash   String    @map("password_hash") @db.VarChar(255)
+  correo         String    @unique @db.VarChar(100)
+  nombreCompleto String    @map("nombre_completo") @db.VarChar(100)
+  tipoUsuario    String    @map("tipo_usuario") @db.VarChar(30) // asesor | administrador
+  fechaRegistro  DateTime  @default(now()) @map("fecha_registro")
+  ultimoLogin    DateTime? @map("ultimo_login")
+  estado         Boolean   @default(true)
+
+  simulaciones Simulacion[]
+  auditorias   Auditoria[]
+
+  @@map("usuarios")
+}
+
+model Cliente {
+  idCliente           Int       @id @default(autoincrement()) @map("id_cliente")
+  dni                 String    @unique @db.VarChar(8)
+  nombres             String    @db.VarChar(100)
+  apellidos           String    @db.VarChar(100)
+  fechaNacimiento     DateTime? @map("fecha_nacimiento") @db.Date
+  direccion           String?   @db.VarChar(255)
+  telefono            String?   @db.VarChar(20)
+  telefonoFijo        String?   @map("telefono_fijo") @db.VarChar(20)
+  correo              String?   @db.VarChar(100)
+  ingresosMensuales   Decimal?  @map("ingresos_mensuales") @db.Decimal(12, 2)
+  otrosIngresos       Decimal?  @map("otros_ingresos") @db.Decimal(12, 2)
+  gastosMensuales     Decimal?  @map("gastos_mensuales") @db.Decimal(12, 2)
+  estadoCivil         String?   @map("estado_civil") @db.VarChar(30)
+  ocupacion           String?   @db.VarChar(100)
+  historialCrediticio String?   @map("historial_crediticio") @db.VarChar(100)
+  observaciones       String?   @db.Text
+  fechaRegistro       DateTime  @default(now()) @map("fecha_registro")
+
+  simulaciones Simulacion[]
+
+  @@map("clientes")
+}
+
+model Vehiculo {
+  idVehiculo           Int      @id @default(autoincrement()) @map("id_vehiculo")
+  placa                String?  @db.VarChar(20)
+  marca                String   @db.VarChar(50)
+  modelo               String   @db.VarChar(50)
+  anio                 Int
+  version              String?  @db.VarChar(50)
+  precioVenta          Decimal  @map("precio_venta") @db.Decimal(12, 2)
+  moneda               String?  @db.VarChar(10)
+  tipoVehiculo         String?  @map("tipo_vehiculo") @db.VarChar(50)
+  color                String?  @db.VarChar(30)
+  kilometraje          Int?
+  numeroSerie          String   @unique @map("numero_serie") @db.VarChar(100)
+  concesionario        String?  @db.VarChar(100)
+  tipoCombustible      String?  @map("tipo_combustible") @db.VarChar(50)
+  transmision          String?  @db.VarChar(30)
+  estadoVehiculo       String?  @map("estado_vehiculo") @db.VarChar(20) // Nuevo | Usado
+  estadoDisponibilidad Boolean  @default(true) @map("estado_disponibilidad")
+
+  simulaciones Simulacion[]
+
+  @@map("vehiculos")
+}
+
+model EntidadFinanciera {
+  idEntidad          Int      @id @default(autoincrement()) @map("id_entidad")
+  codigoEntidad      String   @unique @map("codigo_entidad") @db.VarChar(20)
+  nombreEntidad      String   @map("nombre_entidad") @db.VarChar(100)
+  tipoEntidad        String?  @map("tipo_entidad") @db.VarChar(50)
+  teaMinima          Decimal? @map("tea_minima") @db.Decimal(5, 2)
+  teaMaxima          Decimal? @map("tea_maxima") @db.Decimal(5, 2)
+  comisionEstudio    Decimal? @map("comision_estudio") @db.Decimal(10, 2)
+  activa             Boolean  @default(true)
+  fechaActualizacion DateTime @default(now()) @map("fecha_actualizacion")
+
+  simulaciones Simulacion[]
+
+  @@map("entidades_financieras")
+}
+
+model Simulacion {
+  idSimulacion      Int      @id @default(autoincrement()) @map("id_simulacion")
+  idCliente         Int      @map("id_cliente")
+  idVehiculo        Int      @map("id_vehiculo")
+  idEntidad         Int      @map("id_entidad")
+  idUsuarioRegistro Int      @map("id_usuario_registro")
+  codigoSimulacion  String   @unique @map("codigo_simulacion") @db.VarChar(50)
+  fechaSimulacion   DateTime @default(now()) @map("fecha_simulacion")
+  moneda            String?  @db.VarChar(10)
+  tipoCambio        Decimal? @map("tipo_cambio") @db.Decimal(10, 4)
+  estado            String?  @db.VarChar(30)
+  observaciones     String?  @db.Text
+
+  cliente  Cliente           @relation(fields: [idCliente], references: [idCliente])
+  vehiculo Vehiculo          @relation(fields: [idVehiculo], references: [idVehiculo])
+  entidad  EntidadFinanciera @relation(fields: [idEntidad], references: [idEntidad])
+  usuario  Usuario           @relation(fields: [idUsuarioRegistro], references: [idUsuario])
+
+  parametros ParametroCredito?
+  cronograma CronogramaPago[]
+  resultado  ResultadoCredito?
+  seguros    SeguroComision[]
+
+  @@index([idCliente])
+  @@index([idVehiculo])
+  @@index([idEntidad])
+  @@index([idUsuarioRegistro])
+  @@map("simulaciones")
+}
+
+model ParametroCredito {
+  idParametro          Int      @id @default(autoincrement()) @map("id_parametro")
+  idSimulacion         Int      @unique @map("id_simulacion")
+  precioVehiculo       Decimal  @map("precio_vehiculo") @db.Decimal(12, 2)
+  cuotaInicialPorc     Decimal  @map("cuota_inicial_porc") @db.Decimal(5, 2)
+  cuotaInicialMonto    Decimal  @map("cuota_inicial_monto") @db.Decimal(12, 2)
+  montoFinanciado      Decimal  @map("monto_financiado") @db.Decimal(12, 2)
+  cuotaBalloonPorc     Decimal  @map("cuota_balloon_porc") @db.Decimal(5, 2)
+  cuotaBalloonMonto    Decimal  @map("cuota_balloon_monto") @db.Decimal(12, 2)
+  plazoMeses           Int      @map("plazo_meses")
+  tipoTasa             String   @map("tipo_tasa") @db.VarChar(30)
+  valorTasa            Decimal  @map("valor_tasa") @db.Decimal(8, 4)
+  capitalizacion       String?  @db.VarChar(30)
+  tipoGracia           String?  @map("tipo_gracia") @db.VarChar(30)
+  mesesGracia          Int      @default(0) @map("meses_gracia")
+  seguroDesgravamenPorc Decimal? @map("seguro_desgravamen_porc") @db.Decimal(8, 4)
+  seguroVehicularMonto  Decimal? @map("seguro_vehicular_monto") @db.Decimal(12, 2)
+  fechaCreacion        DateTime @default(now()) @map("fecha_creacion")
+
+  simulacion Simulacion @relation(fields: [idSimulacion], references: [idSimulacion], onDelete: Cascade)
+
+  @@map("parametros_credito")
+}
+
+model CronogramaPago {
+  idCronograma       Int       @id @default(autoincrement()) @map("id_cronograma")
+  idSimulacion       Int       @map("id_simulacion")
+  numeroCuota        Int       @map("numero_cuota")
+  fechaVencimiento   DateTime? @map("fecha_vencimiento") @db.Date
+  saldoInicial       Decimal   @map("saldo_inicial") @db.Decimal(12, 2)
+  cuota              Decimal   @db.Decimal(12, 2)
+  interes            Decimal   @db.Decimal(12, 2)
+  amortizacion       Decimal   @db.Decimal(12, 2)
+  seguroDesgravamen  Decimal   @map("seguro_desgravamen") @db.Decimal(12, 2)
+  seguroVehicular    Decimal   @map("seguro_vehicular") @db.Decimal(12, 2)
+  comisiones         Decimal   @default(0) @db.Decimal(12, 2)
+  saldoFinal         Decimal   @map("saldo_final") @db.Decimal(12, 2)
+  esPeriodoGracia    Boolean   @default(false) @map("es_periodo_gracia")
+  tipoGraciaAplicada String?   @map("tipo_gracia_aplicada") @db.VarChar(30)
+
+  simulacion Simulacion @relation(fields: [idSimulacion], references: [idSimulacion], onDelete: Cascade)
+
+  @@index([idSimulacion])
+  @@map("cronograma_pagos")
+}
+
+model ResultadoCredito {
+  idResultado       Int      @id @default(autoincrement()) @map("id_resultado")
+  idSimulacion      Int      @unique @map("id_simulacion")
+  teaCalculada      Decimal  @map("tea_calculada") @db.Decimal(8, 4)
+  temCalculada      Decimal  @map("tem_calculada") @db.Decimal(8, 4)
+  tcea              Decimal  @db.Decimal(8, 4)
+  cuotaPromedio     Decimal  @map("cuota_promedio") @db.Decimal(12, 2)
+  totalIntereses    Decimal  @map("total_intereses") @db.Decimal(12, 2)
+  totalSeguros      Decimal  @map("total_seguros") @db.Decimal(12, 2)
+  totalComisiones   Decimal  @default(0) @map("total_comisiones") @db.Decimal(12, 2)
+  costoTotalCredito Decimal  @map("costo_total_credito") @db.Decimal(12, 2)
+  van               Decimal  @db.Decimal(12, 2)
+  tir               Decimal  @db.Decimal(8, 4)
+  tasaDescuentoVan  Decimal  @map("tasa_descuento_van") @db.Decimal(8, 4)
+  fechaCalculo      DateTime @default(now()) @map("fecha_calculo")
+
+  simulacion Simulacion @relation(fields: [idSimulacion], references: [idSimulacion], onDelete: Cascade)
+
+  @@map("resultados_credito")
+}
+
+model SeguroComision {
+  idConcepto      Int      @id @default(autoincrement()) @map("id_concepto")
+  idSimulacion    Int      @map("id_simulacion")
+  tipoConcepto    String?  @map("tipo_concepto") @db.VarChar(50)
+  descripcion     String?  @db.VarChar(255)
+  modalidadCalculo String? @map("modalidad_calculo") @db.VarChar(50)
+  valor           Decimal? @db.Decimal(12, 2)
+  periodicidad    String?  @db.VarChar(30)
+  esObligatorio   Boolean  @default(true) @map("es_obligatorio")
+  afectaTcea      Boolean  @default(true) @map("afecta_tcea")
+
+  simulacion Simulacion @relation(fields: [idSimulacion], references: [idSimulacion], onDelete: Cascade)
+
+  @@index([idSimulacion])
+  @@map("seguros_comisiones")
+}
+
+model Auditoria {
+  idAuditoria      Int      @id @default(autoincrement()) @map("id_auditoria")
+  idUsuario        Int      @map("id_usuario")
+  tablaAfectada    String?  @map("tabla_afectada") @db.VarChar(100)
+  accion           String?  @db.VarChar(50)
+  registroAfectado Int?     @map("registro_afectado")
+  datosAnteriores  String?  @map("datos_anteriores") @db.Text
+  datosNuevos      String?  @map("datos_nuevos") @db.Text
+  fechaAccion      DateTime @default(now()) @map("fecha_accion")
+  ipAddress        String?  @map("ip_address") @db.VarChar(45)
+
+  usuario Usuario @relation(fields: [idUsuario], references: [idUsuario])
+
+  @@index([idUsuario])
+  @@map("auditoria")
+}
