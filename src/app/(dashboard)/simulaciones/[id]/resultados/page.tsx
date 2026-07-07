@@ -31,7 +31,7 @@ export default async function ResultadosPage({
 
   return (
     <div>
-      <div className="mb-5 flex items-center justify-between">
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">
             Resultados Financieros
@@ -42,7 +42,7 @@ export default async function ResultadosPage({
         </div>
         <Link
           href={`/simulaciones/${idSimulacion}`}
-          className="rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+          className="rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-center text-sm font-medium text-slate-700 transition hover:bg-slate-50"
         >
           ← Ver cronograma
         </Link>

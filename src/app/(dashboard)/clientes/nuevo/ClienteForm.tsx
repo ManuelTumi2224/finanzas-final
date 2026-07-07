@@ -49,7 +49,7 @@ export function ClienteForm() {
 
   return (
     <form onSubmit={submit}>
-      <div className="mb-5 flex items-center justify-between">
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold text-slate-900">Registro de Cliente</h1>
         <button
           type="submit"

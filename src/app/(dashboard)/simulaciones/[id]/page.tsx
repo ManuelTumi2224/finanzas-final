@@ -32,7 +32,7 @@ export default async function PlanPagosPage({
 
   return (
     <div>
-      <div className="mb-5 flex items-center justify-between">
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">
             Simulación del Plan de Pagos
@@ -43,7 +43,7 @@ export default async function PlanPagosPage({
         </div>
         <Link
           href={`/simulaciones/${idSimulacion}/resultados`}
-          className="rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-700"
+          className="rounded-lg bg-brand-600 px-4 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-brand-700"
         >
           Ver resultados financieros →
         </Link>
@@ -74,7 +74,7 @@ export default async function PlanPagosPage({
           </h3>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-right text-sm">
+          <table className="w-full min-w-[860px] text-right text-sm">
             <thead className="bg-slate-50 text-xs uppercase text-slate-500">
               <tr>
                 <Th className="text-center">N°</Th>
