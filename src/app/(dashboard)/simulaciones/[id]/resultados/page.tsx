@@ -25,101 +25,77 @@ export default async function ResultadosPage({
   const p = sim.parametros;
   const r = sim.resultado;
   const pct = (v: number) => `${v.toFixed(4)}%`;
-
-  const montoTotalPagar =
-    Number(r.costoTotalCredito) + Number(p.montoFinanciado);
+  const gracia = `${p.graciaTotalMeses} total + ${p.graciaParcialMeses} parcial`;
 
   return (
     <div>
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">
-            Resultados Financieros
-          </h1>
-          <p className="text-sm text-slate-500">
-            {sim.codigoSimulacion} · Resultados financieros
-          </p>
+          <h1 className="text-2xl font-bold text-slate-900">Resultados Financieros</h1>
+          <p className="text-sm text-slate-500">{sim.codigoSimulacion} · Compra Inteligente</p>
         </div>
-        <Link
-          href={`/simulaciones/${idSimulacion}`}
-          className="rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-center text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-        >
+        <Link href={`/simulaciones/${idSimulacion}`}
+          className="rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-center text-sm font-medium text-slate-700 transition hover:bg-slate-50">
           ← Ver cronograma
         </Link>
       </div>
 
-      {/* KPIs */}
       <div className="mb-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Kpi
-          label="Cuota mensual (aprox.)"
-          value={fmtMonto(Number(r.cuotaPromedio), moneda)}
-          color="brand"
-        />
+        <Kpi label="Cuota regular" value={fmtMonto(Number(r.cuotaPromedio), moneda)} color="brand" />
         <Kpi label="TCEA" value={pct(Number(r.tcea))} color="emerald" />
-        <Kpi label="VAN" value={fmtMonto(Number(r.van), moneda)} color="violet" />
+        <Kpi label="VAN (a COK)" value={fmtMonto(Number(r.van), moneda)} color="violet" />
         <Kpi label="TIR (mensual)" value={pct(Number(r.tir))} color="amber" />
       </div>
 
       <div className="grid gap-5 lg:grid-cols-2">
-        {/* Resumen */}
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h3 className="mb-4 text-sm font-semibold text-slate-700">
-            Resumen del crédito
-          </h3>
+          <h3 className="mb-4 text-sm font-semibold text-slate-700">Resumen del crédito</h3>
           <dl className="space-y-2 text-sm">
             <Row label="Precio del vehículo" value={fmtMonto(Number(p.precioVehiculo), moneda)} />
             <Row label={`Cuota inicial (${Number(p.cuotaInicialPorc)}%)`} value={fmtMonto(Number(p.cuotaInicialMonto), moneda)} />
-            <Row label="Monto financiado" value={fmtMonto(Number(p.montoFinanciado), moneda)} strong />
-            <Row label={`Cuota final / Balloon (${Number(p.cuotaBalloonPorc)}%)`} value={fmtMonto(Number(p.cuotaBalloonMonto), moneda)} />
-            <Row label="Plazo" value={`${p.plazoMeses} meses`} />
+            <Row label="(+) Costes iniciales" value={fmtMonto(Number(p.costesIniciales ?? 0), moneda)} />
+            <Row label="Monto del préstamo" value={fmtMonto(Number(r.prestamo ?? p.montoFinanciado), moneda)} strong />
+            <Row label="Saldo a financiar con cuotas" value={fmtMonto(Number(r.saldoFinanciar ?? 0), moneda)} />
+            <Row label={`Cuota final / Balloon (${Number(p.cuotaBalloonPorc)}%)`} value={fmtMonto(Number(r.cuotaFinal ?? p.cuotaBalloonMonto), moneda)} />
+            <Row label="Plazo" value={`${p.plazoMeses} cuotas + balloon`} />
             <Row label="Tipo de tasa" value={`${p.tipoTasa} ${Number(p.valorTasa)}%${p.capitalizacion ? ` (cap. ${p.capitalizacion})` : ""}`} />
-            <Row label="Tipo de gracia" value={`${p.tipoGracia}${p.mesesGracia ? ` (${p.mesesGracia} meses)` : ""}`} />
+            <Row label="Periodos de gracia" value={gracia} />
             <div className="my-2 border-t border-slate-100" />
-            <Row label="Total intereses" value={fmtMonto(Number(r.totalIntereses), moneda)} />
-            <Row label="Total seguros" value={fmtMonto(Number(r.totalSeguros), moneda)} />
-            <Row label="Costo total del crédito" value={fmtMonto(Number(r.costoTotalCredito), moneda)} strong accent />
-            <Row label="Monto total a pagar" value={fmtMonto(montoTotalPagar, moneda)} strong />
+            <Row label="TEA / TEM" value={`${Number(r.teaCalculada).toFixed(4)}% / ${Number(r.temCalculada).toFixed(4)}%`} />
+            <Row label="COK (mensual)" value={pct(Number(r.tasaDescuentoVan))} />
           </dl>
         </div>
 
-        {/* Interpretación */}
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h3 className="mb-4 text-sm font-semibold text-slate-700">
-            Interpretación financiera
-          </h3>
-          <ul className="space-y-4 text-sm">
-            <Interp titulo="La TCEA refleja el costo efectivo anual del crédito.">
-              Incluye intereses, seguros y comisiones. Compara siempre entre
-              alternativas: a menor TCEA, menor costo real del financiamiento.
+          <h3 className="mb-4 text-sm font-semibold text-slate-700">Costos totales del crédito</h3>
+          <dl className="space-y-2 text-sm">
+            <Row label="Total intereses" value={fmtMonto(Number(r.totalIntereses), moneda)} />
+            <Row label="Seguro de desgravamen + riesgo" value={fmtMonto(Number(r.totalSeguros), moneda)} />
+            <Row label="Seguro de riesgo (incluido)" value={fmtMonto(Number(r.totalSegRiesgo ?? 0), moneda)} />
+            <Row label="Gastos periódicos (GPS, portes, adm.)" value={fmtMonto(Number(r.totalGastosPeriodicos ?? r.totalComisiones), moneda)} />
+            <div className="my-2 border-t border-slate-100" />
+            <Row label="Costo total del crédito" value={fmtMonto(Number(r.costoTotalCredito), moneda)} strong accent />
+          </dl>
+
+          <h3 className="mb-3 mt-6 text-sm font-semibold text-slate-700">Interpretación</h3>
+          <ul className="space-y-3 text-sm">
+            <Interp titulo="La TCEA es el costo efectivo anual real.">
+              Incluye intereses, seguros (desgravamen y riesgo) y gastos periódicos. A menor TCEA, menor costo.
             </Interp>
-            <Interp titulo="El VAN mide el valor presente de la operación.">
-              Desde la perspectiva del deudor compara el monto financiado recibido
-              con el valor presente de todos los pagos.
+            <Interp titulo="El VAN se descuenta a la tasa del inversionista (COK).">
+              Compara el préstamo recibido con el valor presente de los pagos. VAN &gt; 0 indica conveniencia frente al COK.
             </Interp>
-            <Interp titulo="La TIR representa la rentabilidad implícita de los flujos.">
-              Se calcula de forma mensual a partir de los pagos reales del crédito
-              y se anualiza para obtener la TCEA.
+            <Interp titulo="La cuota final (balloon) se financia como cuotón.">
+              Capitaliza su interés aparte y se paga en el periodo adicional, dejando el saldo en cero.
             </Interp>
           </ul>
-          <p className="mt-4 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">
-            Importante: estos resultados son referenciales y pueden variar según las
-            condiciones finales aprobadas por la entidad financiera.
-          </p>
         </div>
       </div>
     </div>
   );
 }
 
-function Kpi({
-  label,
-  value,
-  color,
-}: {
-  label: string;
-  value: string;
-  color: "brand" | "emerald" | "violet" | "amber";
-}) {
+function Kpi({ label, value, color }: { label: string; value: string; color: "brand" | "emerald" | "violet" | "amber" }) {
   const bg = {
     brand: "bg-brand-50 text-brand-700",
     emerald: "bg-emerald-50 text-emerald-700",
@@ -128,25 +104,19 @@ function Kpi({
   }[color];
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className={`mb-2 inline-flex rounded-lg px-2 py-1 text-xs font-medium ${bg}`}>
-        {label}
-      </div>
+      <div className={`mb-2 inline-flex rounded-lg px-2 py-1 text-xs font-medium ${bg}`}>{label}</div>
       <div className="text-2xl font-bold text-slate-900">{value}</div>
     </div>
   );
 }
-
 function Row({ label, value, strong, accent }: { label: string; value: string; strong?: boolean; accent?: boolean }) {
   return (
-    <div className="flex items-center justify-between">
+    <div className="flex items-center justify-between gap-2">
       <dt className="text-slate-500">{label}</dt>
-      <dd className={`${strong ? "font-semibold" : ""} ${accent ? "text-brand-600" : "text-slate-800"}`}>
-        {value}
-      </dd>
+      <dd className={`${strong ? "font-semibold" : ""} ${accent ? "text-brand-600" : "text-slate-800"} text-right`}>{value}</dd>
     </div>
   );
 }
-
 function Interp({ titulo, children }: { titulo: string; children: React.ReactNode }) {
   return (
     <li className="flex gap-3">

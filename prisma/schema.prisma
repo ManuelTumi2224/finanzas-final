@@ -140,6 +140,17 @@ model ParametroCredito {
   mesesGracia          Int      @default(0) @map("meses_gracia")
   seguroDesgravamenPorc Decimal? @map("seguro_desgravamen_porc") @db.Decimal(8, 4)
   seguroVehicularMonto  Decimal? @map("seguro_vehicular_monto") @db.Decimal(12, 2)
+  // Modelo Compra Inteligente (Estilo Interbank)
+  costesIniciales      Decimal? @map("costes_iniciales") @db.Decimal(12, 2)
+  gpsPeriodico         Decimal? @map("gps_periodico") @db.Decimal(12, 2)
+  portesPeriodico      Decimal? @map("portes_periodico") @db.Decimal(12, 2)
+  gastosAdmPeriodico   Decimal? @map("gastos_adm_periodico") @db.Decimal(12, 2)
+  seguroRiesgoPorc     Decimal? @map("seguro_riesgo_porc") @db.Decimal(8, 4)
+  cokAnualPorc         Decimal? @map("cok_anual_porc") @db.Decimal(8, 4)
+  graciaTotalMeses     Int      @default(0) @map("gracia_total_meses")
+  graciaParcialMeses   Int      @default(0) @map("gracia_parcial_meses")
+  frecuenciaPagoDias   Int      @default(30) @map("frecuencia_pago_dias")
+  diasPorAnio          Int      @default(360) @map("dias_por_anio")
   fechaCreacion        DateTime @default(now()) @map("fecha_creacion")
 
   simulacion Simulacion @relation(fields: [idSimulacion], references: [idSimulacion], onDelete: Cascade)
@@ -162,6 +173,14 @@ model CronogramaPago {
   saldoFinal         Decimal   @map("saldo_final") @db.Decimal(12, 2)
   esPeriodoGracia    Boolean   @default(false) @map("es_periodo_gracia")
   tipoGraciaAplicada String?   @map("tipo_gracia_aplicada") @db.VarChar(30)
+  // Modelo Interbank: gastos periódicos, cuotón y flujo
+  seguroRiesgo       Decimal?  @map("seguro_riesgo") @db.Decimal(12, 2)
+  gps                Decimal?  @db.Decimal(12, 2)
+  portes             Decimal?  @db.Decimal(12, 2)
+  gastosAdm          Decimal?  @map("gastos_adm") @db.Decimal(12, 2)
+  flujo              Decimal?  @db.Decimal(12, 2)
+  saldoInicialCf     Decimal?  @map("saldo_inicial_cf") @db.Decimal(12, 2)
+  saldoFinalCf       Decimal?  @map("saldo_final_cf") @db.Decimal(12, 2)
 
   simulacion Simulacion @relation(fields: [idSimulacion], references: [idSimulacion], onDelete: Cascade)
 
@@ -183,6 +202,12 @@ model ResultadoCredito {
   van               Decimal  @db.Decimal(12, 2)
   tir               Decimal  @db.Decimal(8, 4)
   tasaDescuentoVan  Decimal  @map("tasa_descuento_van") @db.Decimal(8, 4)
+  // Modelo Interbank
+  prestamo          Decimal? @db.Decimal(12, 2)
+  saldoFinanciar    Decimal? @map("saldo_financiar") @db.Decimal(12, 2)
+  cuotaFinal        Decimal? @map("cuota_final") @db.Decimal(12, 2)
+  totalSegRiesgo    Decimal? @map("total_seg_riesgo") @db.Decimal(12, 2)
+  totalGastosPeriodicos Decimal? @map("total_gastos_periodicos") @db.Decimal(12, 2)
   fechaCalculo      DateTime @default(now()) @map("fecha_calculo")
 
   simulacion Simulacion @relation(fields: [idSimulacion], references: [idSimulacion], onDelete: Cascade)

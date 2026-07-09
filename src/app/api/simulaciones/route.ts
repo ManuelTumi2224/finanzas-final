@@ -2,9 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { registrarAuditoria } from "@/lib/audit";
-import { simular } from "@/lib/finance/simulate";
-import { validarEntrada } from "@/lib/finance/validate";
-import type { EntradaSimulacion } from "@/lib/finance/types";
+import { simularInterbank, type EntradaInterbank } from "@/lib/finance/interbank";
+import { validarEntradaInterbank } from "@/lib/finance/validate";
 
 function codigoSimulacion(): string {
   const d = new Date();
@@ -16,6 +15,8 @@ function codigoSimulacion(): string {
   return `SIM-${stamp}-${rnd}`;
 }
 
+const abs = (x: number) => Math.abs(x);
+
 export async function POST(req: Request) {
   const session = await requireUser();
   const body = await req.json().catch(() => ({}));
@@ -24,10 +25,9 @@ export async function POST(req: Request) {
     idCliente: number;
     idVehiculo: number;
     idEntidad: number;
-  } & EntradaSimulacion;
+  } & EntradaInterbank;
 
-  // Validacion financiera.
-  const errores = validarEntrada(entrada);
+  const errores = validarEntradaInterbank(entrada);
   if (Object.keys(errores).length > 0) {
     return NextResponse.json({ errores }, { status: 400 });
   }
@@ -38,13 +38,22 @@ export async function POST(req: Request) {
     );
   }
 
-  // Calculo con el motor financiero.
-  const r = simular(entrada as EntradaSimulacion);
+  const r = simularInterbank(entrada as EntradaInterbank);
 
-  const cuotaPromedio =
-    r.cronograma.reduce((s, f) => s + f.cuotaTotal, 0) / r.cronograma.length;
+  const totalSeguros = r.totalSegDesgravamen + r.totalSegRiesgo;
+  const totalGastosPeriodicos = r.totalGps + r.totalPortes + r.totalGastosAdm;
+  const costoTotal =
+    r.totalIntereses + totalSeguros + totalGastosPeriodicos;
 
-  // Persistencia transaccional de toda la operacion.
+  const tipoGracia =
+    (entrada.graciaTotalMeses ?? 0) > 0 && (entrada.graciaParcialMeses ?? 0) > 0
+      ? "total+parcial"
+      : (entrada.graciaTotalMeses ?? 0) > 0
+        ? "total"
+        : (entrada.graciaParcialMeses ?? 0) > 0
+          ? "parcial"
+          : "ninguna";
+
   const sim = await prisma.$transaction(async (tx) => {
     const simulacion = await tx.simulacion.create({
       data: {
@@ -64,33 +73,50 @@ export async function POST(req: Request) {
         precioVehiculo: entrada.precioVehiculo,
         cuotaInicialPorc: entrada.cuotaInicialPct,
         cuotaInicialMonto: r.cuotaInicial,
-        montoFinanciado: r.montoFinanciado,
-        cuotaBalloonPorc: entrada.balloonPct,
-        cuotaBalloonMonto: r.montoBalloon,
+        montoFinanciado: r.prestamo,
+        cuotaBalloonPorc: entrada.cuotaFinalPct,
+        cuotaBalloonMonto: r.cuotaFinal,
         plazoMeses: entrada.plazoMeses,
         tipoTasa: entrada.tipoTasa,
         valorTasa: entrada.valorTasa,
         capitalizacion: entrada.capitalizacion ?? null,
-        tipoGracia: entrada.tipoGracia,
-        mesesGracia: entrada.mesesGracia,
-        seguroDesgravamenPorc: entrada.seguroDesgravamenPct,
-        seguroVehicularMonto: entrada.seguroVehicular,
+        tipoGracia,
+        mesesGracia:
+          (entrada.graciaTotalMeses ?? 0) + (entrada.graciaParcialMeses ?? 0),
+        seguroDesgravamenPorc: entrada.seguroDesgravamenPct ?? 0,
+        costesIniciales: entrada.costesIniciales ?? 0,
+        gpsPeriodico: entrada.gpsPeriodico ?? 0,
+        portesPeriodico: entrada.portesPeriodico ?? 0,
+        gastosAdmPeriodico: entrada.gastosAdmPeriodico ?? 0,
+        seguroRiesgoPorc: entrada.seguroRiesgoPct ?? 0,
+        cokAnualPorc: entrada.cokAnualPct ?? 0,
+        graciaTotalMeses: entrada.graciaTotalMeses ?? 0,
+        graciaParcialMeses: entrada.graciaParcialMeses ?? 0,
+        frecuenciaPagoDias: entrada.frecuenciaPagoDias ?? 30,
+        diasPorAnio: entrada.diasPorAnio ?? 360,
       },
     });
 
     await tx.cronogramaPago.createMany({
       data: r.cronograma.map((f) => ({
         idSimulacion: simulacion.idSimulacion,
-        numeroCuota: f.mes,
-        saldoInicial: f.saldoInicial,
-        cuota: f.cuotaTotal,
-        interes: f.interes,
-        amortizacion: f.amortizacion,
-        seguroDesgravamen: f.seguroDesgravamen,
-        seguroVehicular: f.seguroVehicular,
-        saldoFinal: f.saldoFinal,
-        esPeriodoGracia: f.esGracia,
-        tipoGraciaAplicada: f.tipoGraciaAplicada,
+        numeroCuota: f.nc,
+        saldoInicial: abs(f.saldoInicial),
+        cuota: abs(f.cuota),
+        interes: abs(f.interes),
+        amortizacion: abs(f.amortizacion),
+        seguroDesgravamen: abs(f.segDesgravamen),
+        seguroVehicular: 0,
+        seguroRiesgo: abs(f.segRiesgo),
+        gps: abs(f.gps),
+        portes: abs(f.portes),
+        gastosAdm: abs(f.gastosAdm),
+        flujo: f.flujo,
+        saldoInicialCf: abs(f.saldoInicialCF),
+        saldoFinalCf: abs(f.saldoFinalCF),
+        saldoFinal: abs(f.saldoFinal),
+        esPeriodoGracia: f.pg !== "S",
+        tipoGraciaAplicada: f.pg,
       })),
     });
 
@@ -100,14 +126,19 @@ export async function POST(req: Request) {
         teaCalculada: r.tea * 100,
         temCalculada: r.tem * 100,
         tcea: Number.isFinite(r.tcea) ? r.tcea * 100 : 0,
-        cuotaPromedio,
+        cuotaPromedio: r.cuotaRegular,
         totalIntereses: r.totalIntereses,
-        totalSeguros: r.totalSeguros,
-        costoTotalCredito: r.costoTotalCredito,
+        totalSeguros,
+        totalComisiones: totalGastosPeriodicos,
+        costoTotalCredito: costoTotal,
         van: r.van,
         tir: Number.isFinite(r.tirMensual) ? r.tirMensual * 100 : 0,
-        tasaDescuentoVan:
-          (entrada.tasaDescuentoVANPct ?? r.tem * 100) as number,
+        tasaDescuentoVan: r.cokMensual * 100,
+        prestamo: r.prestamo,
+        saldoFinanciar: r.saldoFinanciar,
+        cuotaFinal: r.cuotaFinal,
+        totalSegRiesgo: r.totalSegRiesgo,
+        totalGastosPeriodicos,
       },
     });
 
